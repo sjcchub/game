@@ -1,0 +1,476 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Campus Life 3D</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--pn:rgba(255,255,255,.93);--ac:#2a6fdb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111;--fg:#f2f2f2;--pn:rgba(25,25,30,.93);--ac:#6ea8ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111;--fg:#f2f2f2;--pn:rgba(25,25,30,.93);--ac:#6ea8ff;color-scheme:dark}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif}
+#hud,#hint,#tt,#dlg,#menu,#start .p,#stats,#cal{background:var(--pn);border-radius:10px;padding:8px 12px}
+#hud{position:fixed;top:10px;left:10px;max-width:340px}#hud div{margin-top:4px}
+#bar{height:6px;background:#8884;border-radius:3px;overflow:hidden}#det{display:block;height:100%;width:0;background:#e33}
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);white-space:nowrap}
+#tt{position:fixed;top:14px;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .3s;pointer-events:none}
+#dlg,#menu{position:fixed;display:none;left:50%;bottom:60px;transform:translateX(-50%);width:min(460px,92vw)}
+#menu{bottom:auto;top:50%;transform:translate(-50%,-50%);max-height:80vh;overflow:auto}
+#dt{white-space:pre-line}.r{display:flex;justify-content:space-between;gap:8px;margin:4px 0;align-items:center}
+button,.b{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:6px 12px;margin:3px 4px 0 0;cursor:pointer;font:inherit;display:inline-block}
+#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;z-index:20}#start .p{max-width:440px;max-height:92vh;overflow:auto}
+/* ---- stats panel ---- */
+#stats{position:fixed;top:10px;right:10px;width:216px;font-size:11px;z-index:5}
+#clock{font-weight:700;font-size:12px;margin-bottom:3px}
+#yearbar{height:4px;background:#8884;border-radius:2px;overflow:hidden;margin-bottom:7px}
+#yb{display:block;height:100%;width:0;background:var(--ac);transition:width .3s}
+.srow{display:flex;align-items:center;gap:6px;margin:3px 0}
+.srow b{width:64px;font-weight:600}
+.sbar{flex:1;height:7px;background:#8884;border-radius:4px;overflow:hidden}
+.sbar i{display:block;height:100%;width:50%;border-radius:4px;background:#4ec06e}
+.srow span{width:22px;text-align:right;opacity:.75}
+#cal{position:fixed;display:none;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,94vw);z-index:15}
+#calgrid .yrow{display:flex;gap:3px;align-items:center;margin:4px 0}
+#calgrid .yr{width:48px;font-size:11px;font-weight:700}
+#calgrid .mo{flex:1;text-align:center;font-size:10px;padding:3px 0;border-radius:4px;background:#8883}
+#calgrid .mo.ev{background:#e0b84a55;box-shadow:inset 0 0 0 1px #e0b84a}
+#calgrid .mo.cur{background:var(--ac);color:#fff;font-weight:700}
+#calgrid .mo.past{opacity:.4}
+#calnote{font-size:11px;opacity:.8;margin:8px 0 0}
+@media (max-width:760px){#hud{max-width:42vw;font-size:11px}#stats{width:48vw;font-size:10px}.srow b{width:50px}#calgrid .yr{width:36px}}
+</style></head><body>
+<div id="hud"><b id="cr">Credits: 0</b> <button onclick="menu()">Missions (M)</button><div id="ob">Press M to pick a mission</div><div id="bar"><i id="det"></i></div></div>
+<div id="stats">
+  <div id="clock">Year 1 · Jul · Day 1</div>
+  <div id="yearbar"><i id="yb"></i></div>
+  <div class="srow"><b>Health</b><div class="sbar"><i id="sbhea"></i></div><span id="svhea">55</span></div>
+  <div class="srow"><b>Sports</b><div class="sbar"><i id="sbspo"></i></div><span id="svspo">55</span></div>
+  <div class="srow"><b>Culture</b><div class="sbar"><i id="sbcul"></i></div><span id="svcul">55</span></div>
+  <div class="srow"><b>Education</b><div class="sbar"><i id="sbedu"></i></div><span id="svedu">55</span></div>
+  <div class="srow"><b>Social</b><div class="sbar"><i id="sbsoc"></i></div><span id="svsoc">55</span></div>
+  <button onclick="calPanel()" style="width:100%;margin-top:7px">Calendar (C)</button>
+</div>
+<div id="hint"></div><div id="tt"></div>
+<div id="dlg"><b id="dn"></b><p id="dt"></p><div id="db"></div></div>
+<div id="menu"></div>
+<div id="cal"><h3 style="margin:0 0 6px">Academic Calendar</h3><div id="calgrid"></div><p id="calnote"></p><button onclick="calPanel()">Close</button></div>
+<div id="start"><div class="p"><h2>Campus Life 3D</h2>
+<p>WASD move · Shift run · Space jump · E talk / use station · F scooter · M missions · C calendar · drag mouse to look, wheel to zoom.</p>
+<p><b>Three years.</b> Keep Health, Sports, Culture, Education and Social above water — they decay every day. Study at the library, eat at the canteen, shoot hoops, rehearse at the auditorium and hang out on the plaza bench. Mission months give a bonus to gains.</p>
+<label class="b">Load my character (.glb)<input id="f" type="file" accept=".glb" hidden></label>
+<label class="b">Load my building (.glb)<input id="fb" type="file" accept=".glb" hidden></label>
+<p id="info">No character loaded, using a placeholder. You can also drag a .glb file onto this page (a file with “building” in its name loads as the building).</p><p id="info2">No building loaded, using the built-in one.</p>
+<button id="go">Start game</button></div></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+<script>
+const $=id=>document.getElementById(id),R=(a,b)=>a+Math.random()*(b-a),PI=Math.PI;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9fd3f5);scene.fog=new THREE.Fog(0x9fd3f5,70,170);
+const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,300);
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);
+ren.domElement.style.cssText="position:fixed;inset:0";document.body.prepend(ren.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x6a8f5a,1));const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(40,60,20);scene.add(sun);
+const M=c=>new THREE.MeshLambertMaterial({color:c,flatShading:true});
+const box=(w,h,d,c,x,y,z,p=scene)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);p.add(m);return m};
+function label(t,c="#fff"){const cv=document.createElement("canvas");cv.width=256;cv.height=64;const x=cv.getContext("2d");x.font="bold 30px sans-serif";x.textAlign="center";x.fillStyle="rgba(0,0,0,.55)";x.fillRect(0,8,256,48);x.fillStyle=c;x.fillText(t,128,44);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));s.scale.set(8,2,1);return s}
+
+/* ================= WORLD ================= */
+box(240,1,240,0x7fbf6a,0,-.5,0);box(8,.1,80,0x55555c,0,.05,45);box(160,.1,5,0x55555c,0,.05,52);box(80,.1,12,0x9a9aa2,0,.06,11);
+const P={gate:{x:0,z:80,d:0,n:"Main Gate",who:"Guard Ramesh"},adm:{x:-27,z:9,d:0,h:4,wz:5,dir:1,c:0xd9a066,n:"Admin Office",who:"Clerk Mr. Shah"},lib:{x:-14,z:9,d:0,h:4,wz:5,dir:1,c:0x8f6bb3,n:"Library",who:"Librarian Meera"},hos:{x:0,z:9,d:0,h:4,wz:5,dir:1,c:0x7a9e5a,n:"Reception",who:"Mrs. Iyer"},can:{x:14,z:9,d:0,h:4,wz:5,dir:1,c:0xe0b84a,n:"Canteen",who:"Uncle Raju"},aud:{x:27,z:9,d:0,h:4,wz:5,dir:1,c:0xc75b5b,n:"Auditorium",who:"Senior Ananya"},lab:{x:0,z:-29,d:0,h:4,wz:-25,dir:-1,c:0x4aa3a3,n:"Computer Lab",who:"Karan (Lab Asst.)"},gym:{x:62,z:-10,d:0,h:4,n:"Basketball Court",who:"Coach Dev"}};
+const blocks=[],door=p=>({x:p.x,z:p.z+(p.d?p.d/2+4:0)});
+for(const k in P){const p=P[k];if(p.w){box(p.w,p.h,p.d,p.c,p.x,p.h/2,p.z);box(p.w+1,1,p.d+1,0x444444,p.x,p.h+.5,p.z);for(let i=-2;i<=2;i++)box(2,2,.2,0x3a5a7a,p.x+i*p.w/5,p.h*.55,p.z+p.d/2+.1);blocks.push([p.x-p.w/2,p.x+p.w/2,p.z-p.d/2,p.z+p.d/2])}const l=label(p.n);l.position.set(p.x,(p.h||6)+3,p.z);scene.add(l)}
+box(2,6,2,0xcccccc,-6,3,80);box(2,6,2,0xcccccc,6,3,80);box(14,1.5,2,0xcccccc,0,6.5,80);
+/* main building */
+const pb=new THREE.Group();scene.add(pb);box(70,16,30,0xe8d9b8,0,8,-10,pb);box(72,1,32,0x555555,0,16.5,-10,pb);box(12,9,10,0xd9c9a0,0,21,-3,pb);box(13,1,11,0x555555,0,25.5,-3,pb);
+/* clock tower face */
+const clockFace=new THREE.Mesh(new THREE.CircleGeometry(2.4,20),new THREE.MeshBasicMaterial({color:0xfff6d8}));clockFace.position.set(0,22,2.05);pb.add(clockFace);
+let bm;function useBuilding(buf){try{new THREE.GLTFLoader().parse(buf,"",g=>{const m=g.scene,b=new THREE.Box3().setFromObject(m),z=b.getSize(new THREE.Vector3());m.scale.setScalar(Math.min(70/z.x,30/z.z));m.updateMatrixWorld(true);b.setFromObject(m);m.position.add(new THREE.Vector3(-(b.min.x+b.max.x)/2,-b.min.y,5-b.max.z));m.updateMatrixWorld(true);b.setFromObject(m);bm&&scene.remove(bm);bm=m;scene.add(m);pb.visible=false;blocks[0]=[b.min.x,b.max.x,b.min.z,b.max.z];$("info2").textContent="Building loaded."},()=>{$("info2").textContent="Could not read the building file. Please use a .glb."})}catch(e){$("info2").textContent="Could not read the building file."}}
+for(let x=-31;x<=31;x+=4.4)for(const y of[9,13]){box(2,2.2,.2,0x3a5a7a,x,y,5.1,pb);box(2,2.2,.2,0x3a5a7a,x,y,-25.1,pb)}
+for(const k in P){const p=P[k];if(p.wz!==undefined){box(3,4,.4,0x5b3a29,p.x,2,p.wz);box(9,.8,3,p.c,p.x,4.6,p.wz+p.dir*1.5)}}
+blocks.push([-35,35,-25,5]);const bl=label("Main College Building");bl.scale.set(14,3.5,1);bl.position.set(0,29,-3);scene.add(bl);
+/* basketball court */
+box(30,.1,16,0x2f5d9e,62,.06,-10);box(28,.12,.25,0xffffff,62,.08,-17);box(28,.12,.25,0xffffff,62,.08,-3);box(.25,.12,14,0xffffff,62,.08,-10);box(.25,.12,14,0xffffff,48,.08,-10);box(.25,.12,14,0xffffff,76,.08,-10);
+const cr=new THREE.Mesh(new THREE.RingGeometry(2.6,2.8,24),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide}));cr.rotation.x=-PI/2;cr.position.set(62,.09,-10);scene.add(cr);
+for(const s of[-1,1]){box(.3,4,.3,0x333333,62+s*14.6,2,-10);box(.2,2,3,0xffffff,62+s*14.2,4,-10);const r=new THREE.Mesh(new THREE.TorusGeometry(.5,.06,6,14),M(0xff6a00));r.rotation.x=PI/2;r.position.set(62+s*13.5,3.6,-10);scene.add(r);box(5,.11,5,0x1d4580,62+s*12.5,.075,-10)}
+const inB=(x,z,m)=>blocks.some(b=>x>b[0]-m&&x<b[1]+m&&z>b[2]-m&&z<b[3]+m);
+for(let i=0;i<50;i++){const x=R(-100,100),z=R(-95,95);if(Math.abs(x)<7||Math.abs(z)<7||Math.abs(z-52)<5||inB(x,z,4)||(Math.abs(x-62)<20&&Math.abs(z+10)<12)||(z>2&&z<20&&Math.abs(x)<42)||(Math.abs(x)<10&&z>70))continue;
+ const t=new THREE.Mesh(new THREE.CylinderGeometry(.4,.5,2,6),M(0x7a5230));t.position.set(x,1,z);scene.add(t);const c=new THREE.Mesh(new THREE.ConeGeometry(2.2,5,6),M(0x2f8f4a));c.position.set(x,4.5,z);scene.add(c)}
+function push(p,r=.5){for(const b of blocks)if(p.x>b[0]-r&&p.x<b[1]+r&&p.z>b[2]-r&&p.z<b[3]+r){const l=p.x-(b[0]-r),rt=b[1]+r-p.x,t=p.z-(b[2]-r),bt=b[3]+r-p.z,m=Math.min(l,rt,t,bt);if(m==l)p.x=b[0]-r;else if(m==rt)p.x=b[1]+r;else if(m==t)p.z=b[2]-r;else p.z=b[3]+r}}
+
+/* ================= CHARACTERS ================= */
+function blocky(sh,sk=0xf1c27d){const g=new THREE.Group();box(.8,1,.45,sh,0,1.2,0,g);box(.5,.5,.5,sk,0,2.05,0,g);box(.12,.12,.12,0xb98550,0,2,.3,g);
+ const lim=(x,y,w,c)=>{const q=new THREE.Group();q.position.set(x,y,0);box(w,.8,w,c,0,-.4,0,q);g.add(q);return q};
+ g.scale.setScalar(.8);return{g,legs:[lim(-.2,.8,.3,0x333344),lim(.2,.8,.3,0x333344)],arms:[lim(-.55,1.65,.25,sk),lim(.55,1.65,.25,sk)]}}
+const swing=(b,s)=>{if(!b.legs)return;b.legs[0].rotation.x=s;b.legs[1].rotation.x=-s;b.arms[0].rotation.x=-s;b.arms[1].rotation.x=s};
+const pl=new THREE.Group();pl.position.set(0,0,70);scene.add(pl);let vis=blocky(0x2a6fdb);pl.add(vis.g);
+let mixer,A={},cur0,src;
+function play(n,t=1){let a=A[n];if(n=="idle"&&!a){a=A.walk;t=0}if(!a)return;if(cur0===a){a.timeScale=t;return}a.reset();a.timeScale=t;a.setEffectiveWeight(1);a.fadeIn(.15).play();cur0&&cur0.fadeOut(.15);cur0=a}
+function useModel(buf){try{new THREE.GLTFLoader().parse(buf,"",g=>{const m=g.scene,b=new THREE.Box3().setFromObject(m),s=1.8/(b.max.y-b.min.y);m.scale.setScalar(s);m.position.y=-b.min.y*s;
+ const h=new THREE.Group();h.add(m);pl.remove(vis.g);pl.add(h);vis={g:h};mixer=new THREE.AnimationMixer(m);A={};cur0=null;
+ const f=fn=>g.animations.find(fn),w=f(c=>/walk|run/i.test(c.name)),i=f(c=>/idle|stand/i.test(c.name)),js=f(c=>/jump/i.test(c.name)&&!/land/i.test(c.name)),jl=f(c=>/land/i.test(c.name));
+ const mk=(c,once)=>{if(!c)return;const a=mixer.clipAction(c);if(once){a.setLoop(THREE.LoopOnce);a.clampWhenFinished=true}return a};
+ A={walk:mk(w),idle:mk(i),js:mk(js,1),jl:mk(jl,1)};src={m,an:{walk:w,idle:i}};[...contacts,...walkers,...guards].forEach(skin);
+ $("info").textContent="Character loaded. Animations found: "+(g.animations.map(c=>c.name).join(", ")||"none")},e=>{$("info").textContent="Could not read that file. Please use a .glb."})}catch(e){$("info").textContent="Could not read that file."}}
+const idb=()=>new Promise((ok,no)=>{try{const r=indexedDB.open("campus",1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onsuccess=()=>ok(r.result);r.onerror=()=>no()}catch(e){no()}});
+async function saveM(b,k="m"){try{(await idb()).transaction("f","readwrite").objectStore("f").put(b,k)}catch(e){}}
+async function loadM(k,fn){try{const q=(await idb()).transaction("f").objectStore("f").get(k);q.onsuccess=()=>q.result&&fn(q.result)}catch(e){}}
+async function takeFile(file,bld){if(!file)return;const b=await file.arrayBuffer();if(bld||/build/i.test(file.name)){useBuilding(b);saveM(b,"b")}else{useModel(b);saveM(b)}}
+$("f").onchange=e=>takeFile(e.target.files[0]);$("fb").onchange=e=>takeFile(e.target.files[0],1);addEventListener("dragover",e=>e.preventDefault());addEventListener("drop",e=>{e.preventDefault();takeFile(e.dataTransfer.files[0])});
+const af=(u,fn,k)=>fetch(u).then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(fn).catch(()=>loadM(k,fn));af("assets/player.glb",useModel,"m");af("assets/building.glb",useBuilding,"b");
+/* scooter */
+const sc=new THREE.Group();box(.6,.2,1.6,0xe04b4b,0,.35,0,sc);box(.08,.8,.08,0x222222,0,.75,.7,sc);box(.7,.08,.08,0x222222,0,1.15,.7,sc);
+for(const z of[.7,-.7]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.15,10),M(0x111111));w.rotation.z=PI/2;w.position.set(0,.3,z);sc.add(w)}sc.position.set(6,0,72);scene.add(sc);
+/* crowd */
+const nh=()=>new THREE.Color().setHSL(Math.random(),.65,.6).getHex();
+function tint(m,c){const t=new THREE.Color(c);m.traverse(n=>{if(n.isMesh){n.material=Array.isArray(n.material)?n.material.map(x=>x.clone()):n.material.clone();(Array.isArray(n.material)?n.material:[n.material]).forEach(x=>x.color&&x.color.multiply(t))}})}
+function skin(o){if(o.in)o.g.remove(o.in);if(src){const m=THREE.SkeletonUtils.clone(src.m);tint(m,o.col);o.in=new THREE.Group();o.in.add(m);o.mx=new THREE.AnimationMixer(m);o.a={};o.c=null;for(const n in src.an)if(src.an[n])o.a[n]=o.mx.clipAction(src.an[n]);o.legs=null}else{const b=blocky(o.col,o.sk);o.in=b.g;o.legs=b.legs;o.arms=b.arms;o.mx=null}o.g.add(o.in)}
+function actor(col,sk,x,z){const o={g:new THREE.Group(),col,sk};o.g.position.set(x,0,z);scene.add(o.g);skin(o);return o}
+function mot(o,mvg,dt,ph){if(!o.mx){swing(o,mvg?Math.sin(T0*8+ph)*.6:0);return}const a=mvg?o.a.walk:(o.a.idle||o.a.walk);if(a&&o.c!==a){a.reset().fadeIn(.2).play();o.c&&o.c.fadeOut(.2);o.c=a}if(a)a.timeScale=(a===o.a.walk&&!mvg)?0:1;o.mx.update(dt)}
+const contacts=[];for(const k in P){const p=P[k],d=door(p),o=actor(k=="gate"?0x6a7fbf:nh(),0xf1c27d,d.x+2,d.z);const l=label(p.who,"#ffe27a");l.scale.set(5,1.25,1);l.position.y=2.9;o.g.add(l);o.n=p.who;o.k=k;contacts.push(o)}
+const rp=()=>{let x,z,n=0;do{x=R(-95,95);z=R(-85,85);n++}while(n<20&&inB(x,z,2));return[x,z]};
+const walkers=[];for(let i=0;i<16;i++){const[x,z]=rp(),o=actor(nh(),[0xf1c27d,0xc68642,0x8d5524][i%3],x,z);Object.assign(o,{n:"Student",t:rp(),pause:0,ph:R(0,6)});walkers.push(o)}
+const LINES=["Ugh, I have an exam at 11 and I haven’t studied.","The canteen samosas are the best part of this campus.","Have you seen the notice board? The fest is coming up.","Watch out for the guards near the roads after hours.","Is the library open today? I need a quiet corner.","I’m late for class again. Don’t tell the professor!"];
+const routes=[[[-20,60],[20,60],[20,22],[-20,22]],[[-45,15],[45,15],[45,-35],[-45,-35]],[[45,-35],[-45,-35],[-45,15],[45,15]],[[55,10],[85,10],[85,-30],[55,-30]]];
+const guards=routes.map(r=>{const b=actor(0x6a7fbf,0xf1c27d,r[0][0],r[0][1]);const cg=new THREE.CircleGeometry(10,12,-2*PI/3,PI/3);cg.rotateX(-PI/2);
+ const cone=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:0xff3030,transparent:true,opacity:.3,depthWrite:false,side:THREE.DoubleSide}));cone.position.y=.1;cone.visible=false;b.g.add(cone);return Object.assign(b,{cone,r,i:1,h:0})});
+function mv(o,tx,tz,sp,dt){const p=o.g.position,dx=tx-p.x,dz=tz-p.z,d=Math.hypot(dx,dz);if(d>.3){p.x+=dx/d*sp*dt;p.z+=dz/d*sp*dt;o.g.rotation.y=o.h=Math.atan2(dx,dz)}return d}
+const mk=new THREE.Mesh(new THREE.ConeGeometry(1.2,2.5,4),M(0xffd400));mk.rotation.x=PI;mk.visible=false;scene.add(mk);
+
+/* ================= STATS / TIME ================= */
+const S={hea:55,spo:55,cul:55,edu:55,soc:55};
+const SNAME={hea:"Health",spo:"Sports",cul:"Culture",edu:"Education",soc:"Social"};
+const DECAY=0.15, DAY_SEC=1.0, TOTAL_DAYS=1080;
+let day=0, year=0, graduated=false, lastMonth=-1, credits=0;
+const MONTHS=["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
+const EVENTS={2:"Cultural Fest",4:"Mid-Term Exams",6:"Sports Meet",8:"Tech Week",10:"Annual Day"};
+const monthOf=d=>Math.min(11,Math.floor((d%360)/30));
+const eventMonth=()=>EVENTS[monthOf(day)]!==undefined;
+function grade(s){return s>=90?"A+":s>=82?"A":s>=74?"B+":s>=66?"B":s>=58?"C":s>=50?"D":"F"}
+
+/* ================= ACTIVITY STATIONS ================= */
+const SPOTS=[
+ {n:"Study Desk",st:"edu",x:-16,z:14.5,c:0x8f6bb3,line:"You bury yourself in the books."},
+ {n:"Canteen Counter",st:"hea",x:12,z:14.5,c:0xe0b84a,line:"You eat a proper meal."},
+ {n:"Basketball Hoop",st:"spo",x:56,z:-10,c:0x2f5d9e,line:"You shoot hoops until you sweat."},
+ {n:"Auditorium Stage",st:"cul",x:25,z:14.5,c:0xc75b5b,line:"You rehearse your act."},
+ {n:"Plaza Bench",st:"soc",x:-2,z:21,c:0x4aa3a3,line:"You hang out and chat with friends."}
+];
+SPOTS.forEach(s=>{s.cd=0;
+ const ring=new THREE.Mesh(new THREE.RingGeometry(2.4,2.9,26),new THREE.MeshBasicMaterial({color:s.c,transparent:true,opacity:.45,side:THREE.DoubleSide}));
+ ring.rotation.x=-PI/2;ring.position.set(s.x,.12,s.z);scene.add(ring);
+ box(1.8,.9,1.8,s.c,s.x,.45,s.z);
+ const l=label(s.n,"#fff");l.scale.set(5,1.25,1);l.position.set(s.x,2.3,s.z);scene.add(l);
+});
+function nearSpot(){let b=null,bd=4;for(const s of SPOTS){const d=Math.hypot(pl.position.x-s.x,pl.position.z-s.z);if(d<bd){b=s;bd=d}}if(b)b.d=bd;return b}
+function doActivity(s){
+ if(day<s.cd){toast("Catch your breath first…");return}
+ let g=Math.max(1,Math.round(12*(1.1-S[s.st]/100)));
+ if(eventMonth())g=Math.round(g*1.5);
+ S[s.st]=Math.min(100,S[s.st]+g);
+ s.cd=day+3;
+ toast(s.line+"  +"+g+" "+SNAME[s.st]+(eventMonth()?"  (event month bonus!)":""));
+}
+
+/* ================= MISSIONS ================= */
+const TK=(p,h,l,q)=>["talk",p,h,l,q], GO=(p,h)=>["go",p,h], SN=(p,h)=>["sneak",p,h];
+const MS=[
+{id:"m1",main:1,r:70,rw:{edu:6,soc:4},titles:["Orientation Day","Sophomore Setup","Final Year Kickoff"],years:[
+ [TK("adm","Meet Mr. Shah at the Admin Office","Welcome to campus! Let’s get your ID sorted.",["Which paper proves you paid your fees?",["Fee receipt","Library card","Bus pass"],0]),
+  TK("hos","Collect your timetable from Reception","Here you go. Classes start at nine sharp!")],
+ [TK("adm","Register for your second-year electives","Second year already! Time to pick electives.",["Which elective fits a Computer Science student?",["Data Structures","Pottery","Bird Watching"],0]),
+  TK("lib","Collect your course books from the Library","All four titles are on the counter. Good luck!")],
+ [TK("adm","Submit your final-year project form","Last stretch! Choose your guide wisely.",["Who normally approves a final-year project?",["Your project guide","The canteen staff","The gate guard"],0]),
+  TK("lab","Book a workstation with Karan at the Lab","Workstation 7 is yours for the semester.")]
+]},
+{id:"m2",main:1,r:70,rw:{edu:8},titles:["Lost Notes","Missing Lab Report","Thesis Draft"],years:[
+ [TK("lib","Speak to Librarian Meera","A senior left a bag of notes at the canteen. Could you fetch it?"),
+  TK("can","Pick up the notes from Uncle Raju","Ah, the notes! Take them and say hello to Meera."),
+  TK("aud","Deliver the notes to Ananya","Finally, my notes! You just saved my presentation.")],
+ [TK("lab","Karan needs his lab report","My report is stuck at the Admin Office. Fetch it?"),
+  TK("adm","Collect the envelope from Mr. Shah","Signed and sealed. Don’t lose it."),
+  TK("lib","Take the report to Meera for binding","Give me ten minutes… done. Neat, isn’t it?")],
+ [TK("lib","Meera wants your thesis draft","Your draft is due. Get it checked at the Lab first."),
+  TK("lab","Get the draft printed and bound","Printed, bound and beautiful. Off you go."),
+  TK("adm","Submit the thesis at the Admin Office","Received and stamped. You’re nearly done.")]
+]},
+{id:"m3",main:1,r:85,rw:{edu:4,soc:6},titles:["After Hours","Night Shift","The Last Errand"],years:[
+ [TK("lab","Talk to Karan at the Computer Lab","My pen drive is at Reception. Guards are patrolling — stay out of their torchlight."),
+  SN("hos","Sneak to Reception without being seen"),SN("lab","Sneak back to the Lab with the pen drive"),
+  TK("lab","Hand the pen drive to Karan","Saved! My project is due tomorrow morning.")],
+ [TK("lib","Meera left a book on the court","I left a book on the basketball court. Fetch it before the guards spot you."),
+  SN("gym","Sneak to the Basketball Court"),SN("lib","Sneak back to the Library"),
+  TK("lib","Give the book back to Meera","Dry and safe. Thank you, night owl.")],
+ [TK("aud","Ananya left her script at the canteen","My script! Canteen counter. Don’t get caught."),
+  SN("can","Sneak to the Canteen counter"),SN("aud","Sneak back to the Auditorium"),
+  TK("aud","Hand the script to Ananya","You’re a legend. Curtain up!")]
+]},
+{id:"m4",main:1,r:85,rw:{cul:8,spo:4},titles:["Fest Prep","Fest Prep II","Fest Prep: Finale"],years:[
+ [TK("gym","Talk to Coach Dev","Annual day is near. I need water crates from the canteen."),
+  TK("can","Ask Uncle Raju for the crates","Crates are ready. Careful, they’re heavy!"),
+  TK("gym","Deliver the crates to Coach Dev","Perfect! Here’s a riddle for the road.",["3 printers print 3 pages in 3 minutes. How long do 100 printers take for 100 pages?",["100 minutes","3 minutes","33 minutes"],1])],
+ [TK("aud","Ananya needs stage props","The props are stacked at the canteen. Bring them over?"),
+  TK("can","Collect the props from Uncle Raju","Mind the paint, it’s still wet!"),
+  TK("aud","Deliver the props to Ananya","The set looks amazing. One quick question.",["Which of these is a primary colour?",["Green","Orange","Purple"],1])],
+ [TK("adm","Mr. Shah has sponsor letters","Take these to Coach Dev for a signature."),
+  TK("gym","Get the letters signed by Coach Dev","Signed. Tell Shah he owes me a chai."),
+  TK("adm","Return the letters to Mr. Shah","Filed. The fest is officially funded.",["What does ‘sponsor’ mean here?",["A person or group that funds an event","A type of exam","A sports rule"],0])]
+]},
+{id:"m5",main:1,r:100,rw:{edu:10},titles:["Final Viva","Final Viva II","Graduation Viva"],years:[
+ [TK("lab","Karan will quiz you before the viva","Ready for your viva? Warm-up question.",["What does CPU stand for?",["Central Processing Unit","Computer Personal Unit","Core Power Utility"],0]),
+  TK("adm","Get your viva slip stamped","Stamped. One last check.",["Which of these is a prime number?",["21","27","29"],2]),
+  GO("aud","Walk into the Auditorium for your viva")],
+ [TK("lib","Meera has your reading list","One question before you go in.",["What is the plural of ‘index’?",["Indexes","Indices","Index"],1]),
+  TK("adm","Get your hall ticket stamped","Here you are. Don’t be late.",["How many minutes are in two and a half hours?",["120","150","180"],1]),
+  GO("aud","Walk into the Auditorium for your viva")],
+ [TK("lab","Karan’s last-minute check","Final question of your degree.",["Which data structure is FIFO?",["Stack","Queue","Tree"],1]),
+  TK("lib","Meera signs off on your reading log","All logged. Go get them.",["What does ‘viva voce’ literally mean?",["With the living voice","Final paper","Long speech"],0]),
+  GO("aud","Walk into the Auditorium for your graduation viva")]
+]},
+{id:"s1",r:25,rw:{hea:6},titles:["Chai Run","Chai Run II","Chai Run III"],years:[
+ [TK("can","Collect two teas from Uncle Raju","Two teas for Reception, please."),TK("hos","Deliver the tea to Reception","Just what I needed!")],
+ [TK("can","Tea for the Library","Meera’s usual. Don’t spill it."),TK("lib","Deliver the tea to Meera","Perfect timing. Thank you.")],
+ [TK("can","Tea for the Computer Lab","Karan’s been up all night."),TK("lab","Deliver the tea to Karan","You’re a lifesaver.")]
+]},
+{id:"s2",r:25,rw:{edu:6},titles:["Overdue Book","Overdue Book II","Overdue Book III"],years:[
+ [TK("hos","A student needs a book returned","Could you return this to the library? I’m late!"),TK("lib","Return the book to Meera","One more fine avoided. Thanks!")],
+ [TK("lib","Meera found a stray script","This belongs to the Auditorium. Take it over?"),TK("aud","Deliver the script to Ananya","My script! I’ve been looking everywhere.")],
+ [TK("aud","Ananya has a library book","Three weeks late. Take it back for me?"),TK("lib","Return the book to Meera","Three weeks late! I’ll let it slide.")]
+]},
+{id:"s3",r:30,rw:{spo:6,soc:4},titles:["Moonlit Walk","Moonlit Walk II","Moonlit Walk III"],years:[
+ [SN("gym","Sneak to the Basketball Court unseen"),SN("gate","Sneak back to the Main Gate")],
+ [SN("can","Sneak to the Canteen unseen"),SN("gate","Sneak back to the Main Gate")],
+ [SN("aud","Sneak to the Auditorium unseen"),SN("gate","Sneak back to the Main Gate")]
+]},
+{id:"s4",r:25,rw:{soc:6},titles:["Lost ID Card","Lost ID Card II","Lost ID Card III"],years:[
+ [TK("gate","Ramesh found an ID card","Someone dropped this. Find the owner at Reception."),TK("hos","Return the ID at Reception","That’s mine! Thank you so much.")],
+ [TK("gate","Ramesh found a wallet","Take it to the Admin Office, would you?"),TK("adm","Hand the wallet to Mr. Shah","I’ll log it. Good citizen.")],
+ [TK("gate","Ramesh found a library card","Drop it with Meera, will you?"),TK("lib","Return the card to Meera","Phew — my library card was inside.")]
+]},
+{id:"s5",r:20,rw:{cul:6},titles:["Riddle Challenge","Riddle Challenge II","Riddle Challenge III"],years:[
+ [TK("gym","Coach Dev has a riddle","Answer this and I’ll treat you.",["What has keys but cannot open locks?",["A piano","A map","A door"],0])],
+ [TK("lib","Meera has a riddle","Quietly now.",["What gets wetter the more it dries?",["A towel","A sponge","A river"],0])],
+ [TK("aud","Ananya has a riddle","Impress me.",["What has a face and two hands but no arms?",["A clock","A coin","A book"],0])]
+]},
+{id:"s6",r:30,rw:{edu:4,soc:4},titles:["Wi-Fi Woes","Wi-Fi Woes II","Wi-Fi Woes III"],years:[
+ [TK("lab","Karan needs a cable","Our Wi-Fi is down. Bring a cable from the Admin Office."),TK("adm","Borrow a cable from Mr. Shah","Take it, but sign the register!"),TK("lab","Take the cable back to Karan","Wi-Fi is back. Legend!")],
+ [TK("lib","The library scanner is dead","We need a spare cable from the Lab."),TK("lab","Ask Karan for a spare cable","Here, take the blue one."),TK("lib","Return the cable to Meera","Scanning again. Bless you.")],
+ [TK("adm","Mr. Shah needs a network cable","The Lab has spares. Fetch one."),TK("lab","Get a cable from Karan","Last one. Don’t break it."),TK("adm","Deliver the cable to Mr. Shah","Printers are online. Excellent.")]
+]},
+{id:"s7",r:30,rw:{cul:6,soc:4},titles:["Notice Board","Notice Board II","Notice Board III"],years:[
+ [TK("adm","Collect posters from Mr. Shah","Here are the fest posters."),TK("aud","Give the posters to Ananya","Great, I’ll pin them up."),TK("can","Pin one at the Canteen","Perfect spot. Everyone sees it here!")],
+ [TK("adm","Collect the exam schedule","Put a copy up in the Library, please."),TK("lib","Pin the schedule in the Library","Done. Students will actually read it."),TK("can","Pin one at the Canteen","Now nobody can say they didn’t know.")],
+ [TK("aud","Ananya has leftover fest flyers","Take them to the Admin Office."),TK("can","Pin a flyer at the Canteen","Good spot, right by the counter."),TK("adm","Deliver the flyers to Mr. Shah","Filed. Nice work.")]
+]},
+{id:"s8",r:30,rw:{hea:4,soc:6},titles:["Midnight Snack","Midnight Snack II","Midnight Snack III"],years:[
+ [SN("can","Sneak to the Canteen"),TK("can","Ask Uncle Raju for a snack","Shh, just this once!"),SN("hos","Sneak back to Reception")],
+ [SN("can","Sneak to the Canteen"),TK("can","Ask Uncle Raju for a snack","Fine, but quietly!"),SN("lib","Sneak back to the Library")],
+ [SN("can","Sneak to the Canteen"),TK("can","Ask Uncle Raju for a snack","Last one, I promise."),SN("lab","Sneak back to the Lab")]
+]},
+{id:"s9",r:35,rw:{edu:6,soc:6},titles:["Group Project","Group Project II","Group Project III"],years:[
+ [TK("lib","Meet your group at the Library","Time to choose our approach.",["Best way to run a group project?",["Plan and split tasks","Leave it for tonight","Copy last year’s"],0]),TK("lab","Print the report at the Lab","Printing… done!"),TK("aud","Present to Ananya","Great work, team!")],
+ [TK("lib","Meet your group at the Library","Pick a topic.",["What makes a good research topic?",["Narrow and specific","As broad as possible","Whatever is easiest"],0]),TK("can","Discuss it over lunch","Good ideas always come with food."),TK("aud","Present to Ananya","Solid. I’m impressed.")],
+ [TK("lib","Meet your group at the Library","Final year — pick something that matters.",["A literature review should…",["Summarise existing work","Repeat your results","List your friends"],0]),TK("adm","Get the project approved","Approved. Don’t waste the year."),TK("aud","Present to Ananya","Best one yet. Well done.")]
+]},
+{id:"s10",r:40,rw:{spo:4,cul:4,soc:4},titles:["Campus Tour","Campus Tour II","Campus Tour III"],years:[
+ [GO("lib","Visit the Library"),GO("can","Visit the Canteen"),GO("gym","Visit the Basketball Court"),GO("hos","Visit Reception")],
+ [GO("aud","Visit the Auditorium"),GO("lab","Visit the Computer Lab"),GO("lib","Visit the Library"),GO("can","Visit the Canteen")],
+ [GO("gym","Visit the Basketball Court"),GO("aud","Visit the Auditorium"),GO("adm","Visit the Admin Office"),GO("lib","Visit the Library")]
+]}
+];
+
+/* ================= GAME STATE ================= */
+let missions=[], cur=null, si=0, done={}, busy=false, det=0, started=false;
+const st=()=>cur&&cur.s[si];
+const paused=()=>busy||!started;
+
+function buildYear(y){
+  cur=null;si=0;
+  missions=MS.map(t=>({id:t.id+"_"+y,t:t.titles[y],main:!!t.main,r:t.r,rw:t.rw,s:t.years[y]}));
+  lastMonth=-1;
+}
+function unlocked(x){
+  if(!x.main)return true;
+  const mains=missions.filter(y=>y.main),i=mains.indexOf(x);
+  return i<=0||done[mains[i-1].id];
+}
+function toast(t){const e=$("tt");e.textContent=t;e.style.opacity=1;clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.opacity=0,3500)}
+function say(n,t,o){busy=true;$("dlg").style.display="block";$("dn").textContent=n;$("dt").textContent=t;const b=$("db");b.innerHTML="";o.forEach(([l,f])=>{const e=document.createElement("button");e.textContent=l;e.onclick=()=>{$("dlg").style.display="none";busy=false;f&&f()};b.appendChild(e)})}
+function advance(){
+  si++;
+  if(!cur)return;
+  if(si>=cur.s.length){
+    credits+=cur.r;done[cur.id]=1;
+    if(cur.rw)for(const k in cur.rw)S[k]=Math.min(100,S[k]+cur.rw[k]);
+    const nm=cur.t;cur=null;
+    toast("Mission complete: "+nm+" (+"+cur&&0, 0); // placeholder replaced below
+  }
+}
+/* real advance (overrides above) */
+function advance(){
+  si++;
+  if(!cur)return;
+  if(si>=cur.s.length){
+    const nm=cur.t, rr=cur.r;
+    credits+=rr;done[cur.id]=1;
+    if(cur.rw)for(const k in cur.rw)S[k]=Math.min(100,S[k]+cur.rw[k]);
+    cur=null;
+    toast("Mission complete: "+nm+" (+"+rr+" credits)");
+  } else toast("Next: "+st()[2]);
+}
+function ask(n,s){const q=s[4];say(n,q[0],q[1].map((l,i)=>[l,()=>i==q[2]?say(n,"Correct!",[["Continue",advance]]):say(n,"Not quite. Try again.",[["Retry",()=>ask(n,s)]])]))}
+function startM(id){cur=missions.find(x=>x.id==id);si=0;$("menu").style.display="none";busy=false;toast("Started: "+cur.t)}
+function menu(){
+  const m=$("menu");
+  if(m.style.display=="block"){m.style.display="none";busy=false;return}
+  if(busy||!started)return;
+  busy=true;m.style.display="block";
+  let h="<h3>Year "+(year+1)+" Missions — "+Object.keys(done).length+"/45 done</h3>";
+  missions.forEach(x=>{
+    const ok=unlocked(x);
+    h+="<div class=r><span>"+(x.main?"<b>Main</b>":"Side")+": "+x.t+" (+"+x.r+")</span>"+
+       (done[x.id]?"<em>Done</em>":ok?"<button onclick=\"startM('"+x.id+"')\">"+(cur&&cur.id==x.id?"Restart":"Start")+"</button>":"<em>Locked</em>")+"</div>";
+  });
+  m.innerHTML=h+"<button onclick=menu()>Close</button>";
+}
+function calPanel(){
+  const c=$("cal");
+  if(c.style.display=="block"){c.style.display="none";busy=false;return}
+  if(busy||!started)return;
+  busy=true;c.style.display="block";
+  let h="";
+  for(let y=0;y<3;y++){
+    h+="<div class='yrow'><span class='yr'>Year "+(y+1)+"</span>";
+    for(let m=0;m<12;m++){
+      const idx=y*12+m, curIdx=year*12+monthOf(day);
+      let cls="mo";
+      if(EVENTS[m])cls+=" ev";
+      if(idx<curIdx)cls+=" past";
+      if(idx===curIdx)cls+=" cur";
+      h+="<i class='"+cls+"' title='"+(EVENTS[m]||"")+"'>"+MONTHS[m]+"</i>";
+    }
+    h+="</div>";
+  }
+  $("calgrid").innerHTML=h;
+  $("calnote").textContent="Highlighted = now. Gold months are event months (stat gains ×1.5).";
+}
+function yearReport(){
+  cur=null;
+  const avg=(S.hea+S.spo+S.cul+S.edu+S.soc)/5;
+  const md=missions.filter(m=>done[m.id]).length;
+  const score=avg*0.8+(md/15)*20;
+  say("Year "+(year+1)+" Report",
+    "Average stat score: "+avg.toFixed(0)+
+    "\nMissions completed: "+md+"/15"+
+    "\nCredits: "+credits+
+    "\nYear grade: "+grade(score)+
+    "\n\n"+(avg<45?"Your stats are slipping — visit the stations more often.":"Keep it up."),
+    [["Continue",()=>{
+      year++;
+      if(year>2){graduated=true;finalReport()}
+      else{buildYear(year);day=360*year;toast("Year "+(year+1)+" begins. Good luck!")}
+    }]]);
+}
+function finalReport(){
+  const avg=(S.hea+S.spo+S.cul+S.edu+S.soc)/5;
+  const md=Object.keys(done).length;
+  const score=avg*0.75+(md/45)*25;
+  say("Graduation Day",
+    "Final average: "+avg.toFixed(0)+
+    "\nMissions completed: "+md+"/45"+
+    "\nCredits: "+credits+
+    "\n\nFINAL GRADE: "+grade(score)+
+    "\n\nYou can keep wandering the campus.",
+    [["Keep playing"]]);
+}
+
+/* ================= INPUT ================= */
+const keys={};let yaw=PI,pitch=.45,dist=9,drag=false;
+addEventListener("keydown",e=>{keys[e.code]=1;if(e.code=="Space")e.preventDefault();if(!started)return;
+ if(e.code=="KeyE")interact();
+ if(e.code=="KeyF")ride_();
+ if(e.code=="KeyM")menu();
+ if(e.code=="KeyC")calPanel();
+ if(e.code=="Escape"&&$("menu").style.display=="block")menu();
+ if(e.code=="Escape"&&$("cal").style.display=="block")calPanel();
+});
+addEventListener("keyup",e=>keys[e.code]=0);
+ren.domElement.onpointerdown=()=>drag=true;addEventListener("pointerup",()=>drag=false);
+addEventListener("pointermove",e=>{if(drag){yaw-=e.movementX*.005;pitch=Math.max(.1,Math.min(1.2,pitch+e.movementY*.005))}});
+addEventListener("wheel",e=>dist=Math.max(4,Math.min(16,dist+e.deltaY*.01)));
+addEventListener("resize",()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
+$("go").onclick=()=>{$("start").style.display="none";started=true;buildYear(0);day=0;toast("Year 1 begins. Press M for missions.")};
+let ride=false;const d2=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
+function ride_(){if(busy)return;if(ride)ride=false;else if(d2(pl.position,sc.position)<4)ride=true}
+function nearObj(){let b=null,bd=1e9;for(const c of contacts){const d=d2(pl.position,c.g.position);if(d<4&&d<bd){b=c;bd=d}}for(const w of walkers){const d=d2(pl.position,w.g.position);if(d<3.2&&d<bd){b=w;bd=d}}return b}
+function interact(){
+  if(busy||!started)return;
+  const o=nearObj(),sp=nearSpot();
+  const od=o?d2(pl.position,o.g.position):1e9;
+  if(sp&&sp.d<od){doActivity(sp);return}
+  if(!o)return;
+  if(o.t){o.pause=4;S.soc=Math.min(100,S.soc+2);say(o.n,LINES[Math.floor(Math.random()*LINES.length)],[["OK"]]);return}
+  const s=st();
+  if(s&&s[0]=="talk"&&s[1]==o.k)say(o.n,s[3],[["Continue",()=>s[4]?ask(o.n,s):advance()]]);
+  else{S.soc=Math.min(100,S.soc+1);say(o.n,"Hi there! Nothing for you right now — but nice to chat.",[["OK"]])}
+}
+
+/* ================= UPDATE LOOP ================= */
+let vy=0,air=false,landT=0,heading=0,T0=0;
+function updStats(){
+  for(const k in S){
+    const v=Math.round(S[k]);
+    const el=$("sb"+k);
+    el.style.width=v+"%";
+    el.style.background=v<30?"#e05555":v<60?"#e0a84a":"#4ec06e";
+    $("sv"+k).textContent=v;
+  }
+  const m=monthOf(day);
+  $("clock").textContent="Year "+(year+1)+" · "+MONTHS[m]+" · Day "+(Math.floor(day%30)+1)+"  ["+Math.round(day)+"/1080]";
+  $("yb").style.width=((day%360)/360*100)+"%";
+  $("cr").textContent="Credits: "+credits;
+}
+function upd(dt){
+  T0+=dt;
+  if(!paused()&&!graduated){
+    day+=dt/DAY_SEC;
+    const dd=dt/DAY_SEC;
+    for(const k in S)S[k]=Math.max(0,S[k]-DECAY*dd);
+    const m=monthOf(day);
+    if(m!==lastMonth){lastMonth=m;if(EVENTS[m])toast("📅 "+EVENTS[m]+" month — stat gains ×1.5");}
+    if(day>=360*(year+1)){day=360*(year+1);yearReport();}
+  }
+  const k=busy?{}:keys,p=pl.position,ix=(k.KeyD?1:0)-(k.KeyA?1:0),iz=(k.KeyW?1:0)-(k.KeyS?1:0),mvg=ix||iz;
+  if(mvg){const dx=ix*Math.cos(yaw)-iz*Math.sin(yaw),dz=-ix*Math.sin(yaw)-iz*Math.cos(yaw),l=Math.hypot(dx,dz),sp=(ride?13:k.ShiftLeft?8:5)*(landT>0?.4:1);
+   p.x+=dx/l*sp*dt;p.z+=dz/l*sp*dt;heading+=((Math.atan2(dx,dz)-heading+3*PI)%(2*PI)-PI)*Math.min(1,dt*12);heading=Math.atan2(Math.sin(heading),Math.cos(heading))}
+  p.x=Math.max(-105,Math.min(105,p.x));p.z=Math.max(-105,Math.min(105,p.z));push(p);
+  if(k.Space&&!air&&landT<=0&&!ride){vy=7.5;air=true;play("js")}
+  vy-=22*dt;p.y+=vy*dt;if(p.y<=0){p.y=0;vy=0;if(air){air=false;landT=A.jl?Math.min(A.jl.getClip().duration,.7):.12;play("jl")}}
+  if(landT>0)landT=Math.max(0,landT-dt);
+  if(mixer){if(!air&&landT<=0)play(mvg&&!ride?"walk":"idle",mvg&&k.ShiftLeft&&!ride?1.5:1);mixer.update(dt)}else swing(vis,air?.7:mvg&&!ride?Math.sin(T0*10)*.8:0);
+  vis.g.rotation.y=heading;vis.g.position.y=ride?.5:0;if(ride){sc.position.set(p.x,0,p.z);sc.rotation.y=heading}
+  contacts.forEach(c=>mot(c,0,dt,0));
+  walkers.forEach(w=>{if(w.pause>0){w.pause-=dt;mot(w,0,dt,w.ph);return}if(mv(w,w.t[0],w.t[1],1.6,dt)<.5)w.t=rp();push(w.g.position,.6);mot(w,1,dt,w.ph)});
+  const s=st(),sn=s&&s[0]=="sneak";let seen=false;
+  guards.forEach(g=>{const t=g.r[g.i];if(mv(g,t[0],t[1],3,dt)<.5)g.i=(g.i+1)%g.r.length;mot(g,1,dt,0);g.cone.visible=!!sn;
+   if(sn){const vx=p.x-g.g.position.x,vz=p.z-g.g.position.z,d=Math.hypot(vx,vz);if(d<10&&d>0&&(vx*Math.sin(g.h)+vz*Math.cos(g.h))/d>.85)seen=true}});
+  det=Math.max(0,Math.min(1,det+(seen?dt*.9:-dt*.4)));$("bar").style.visibility=sn?"visible":"hidden";$("det").style.width=det*100+"%";
+  if(det>=1){det=0;p.set(0,0,75);ride=false;toast("Spotted! Back to the Main Gate.")}
+  if(s){const d=door(P[s[1]]);mk.visible=true;mk.position.set(d.x,9+Math.sin(T0*3),d.z);mk.rotation.y+=dt*2;
+   $("ob").textContent=cur.t+": "+s[2]+" ("+Math.round(d2(p,d))+" m)";
+   if(s[0]!="talk"&&d2(p,d)<5)advance();
+  }else{mk.visible=false;$("ob").textContent=graduated?"Graduated — free roam":"Press M to pick a mission"}
+  updStats();
+  const o=nearObj(),sp=nearSpot();
+  const od=o?d2(p,o.g.position):1e9;
+  let hint="";
+  if(ride)hint="Press F to get off the scooter";
+  else if(d2(p,sc.position)<4)hint="Press F to ride the scooter";
+  else if(sp&&sp.d<od)hint="Press E to use "+sp.n;
+  else if(o)hint="Press E to talk to "+o.n;
+  $("hint").textContent=hint;$("hint").style.display=hint?"block":"none";
+  const tg=new THREE.Vector3(p.x,p.y+1.6,p.z);
+  cam.position.set(tg.x+Math.sin(yaw)*Math.cos(pitch)*dist,tg.y+Math.sin(pitch)*dist,tg.z+Math.cos(yaw)*Math.cos(pitch)*dist);cam.lookAt(tg);
+}
+const clock=new THREE.Clock();
+(function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+ if(started)upd(dt);
+ else{cam.position.set(0,20,100);cam.lookAt(0,0,0);updStats()}
+ ren.render(scene,cam)})();
+buildYear(0);updStats();
+</script></body></html>
