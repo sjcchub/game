@@ -58,17 +58,15 @@ button,.b{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:6px
 <button id="go">Start game</button></div></div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
 const $=id=>document.getElementById(id),R=(a,b)=>a+Math.random()*(b-a),PI=Math.PI;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9fd3f5);scene.fog=new THREE.Fog(0x9fd3f5,70,170);
 const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,300);
-const ren=new THREE.WebGLRenderer({antialias:true});ren.setPixelRatio(1);ren.setSize(innerWidth,innerHeight);
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);
 ren.domElement.style.cssText="position:fixed;inset:0";document.body.prepend(ren.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x6a8f5a,1));const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(40,60,20);scene.add(sun);
-const M=c=>new THREE.MeshLambertMaterial({color:c});
+const M=c=>new THREE.MeshLambertMaterial({color:c,flatShading:true});
 const box=(w,h,d,c,x,y,z,p=scene)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);p.add(m);return m};
 function label(t,c="#fff"){const cv=document.createElement("canvas");cv.width=256;cv.height=64;const x=cv.getContext("2d");x.font="bold 30px sans-serif";x.textAlign="center";x.fillStyle="rgba(0,0,0,.55)";x.fillRect(0,8,256,48);x.fillStyle=c;x.fillText(t,128,44);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));s.scale.set(8,2,1);return s}
 
@@ -82,61 +80,9 @@ box(2,6,2,0xcccccc,-6,3,80);box(2,6,2,0xcccccc,6,3,80);box(14,1.5,2,0xcccccc,0,6
 const pb=new THREE.Group();scene.add(pb);box(70,16,30,0xe8d9b8,0,8,-10,pb);box(72,1,32,0x555555,0,16.5,-10,pb);box(12,9,10,0xd9c9a0,0,21,-3,pb);box(13,1,11,0x555555,0,25.5,-3,pb);
 /* clock tower face */
 const clockFace=new THREE.Mesh(new THREE.CircleGeometry(2.4,20),new THREE.MeshBasicMaterial({color:0xfff6d8}));clockFace.position.set(0,22,2.05);pb.add(clockFace);
-function makeLoader(){
-  const l=new THREE.GLTFLoader();
-  if(THREE.DRACOLoader){
-    const d=new THREE.DRACOLoader();
-    d.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/");
-    l.setDRACOLoader(d);
-  }
-  if(typeof MeshoptDecoder!=="undefined")l.setMeshoptDecoder(MeshoptDecoder);
-  return l;
-}
-let bm,bmMeshes=[],bmBox=null;
-function useBuilding(buf){
-  try{
-    makeLoader().parse(buf,"",g=>{
-      const m=g.scene;
-      bmMeshes=[];
-      m.traverse(n=>{
-        if(n.isMesh){
-          n.castShadow=false;
-          n.receiveShadow=false;
-          const mats=Array.isArray(n.material)?n.material:[n.material];
-          mats.forEach(mt=>{if(mt){mt.side=THREE.DoubleSide;if("flatShading" in mt)delete mt.flatShading;}});
-          // Only collect meshes that are large enough to be floors/walls (ignores tiny props that lag raycasting)
-          const box=new THREE.Box3().setFromObject(n);
-          const sz=box.getSize(new THREE.Vector3());
-          if(sz.x > 1.5 || sz.z > 1.5 || sz.y > 1.5){
-            bmMeshes.push(n);
-          }
-        }
-      });
-      const b=new THREE.Box3().setFromObject(m),z=b.getSize(new THREE.Vector3());
-      const maxDim=Math.max(z.x,z.z)||1;
-      m.scale.setScalar(Math.min(70/(z.x||maxDim),30/(z.z||maxDim)));
-      m.updateMatrixWorld(true);
-      b.setFromObject(m);
-      m.position.add(new THREE.Vector3(-(b.min.x+b.max.x)/2,-b.min.y,5-b.max.z));
-      m.updateMatrixWorld(true);
-      b.setFromObject(m);
-      bm&&scene.remove(bm);
-      bm=m;
-      scene.add(m);
-      pb.visible=false;
-      blocks.length=0;
-      bmBox=b.clone();
-      $("info2").textContent="Building loaded (optimized interior).";
-    },err=>{
-      console.error("Building GLB parse error:",err);
-      $("info2").textContent="Could not read the building file. Please use a .glb.";
-    });
-  }catch(e){
-    console.error("Building load exception:",e);
-    $("info2").textContent="Could not read the building file.";
-  }
-}for(let x=-31;x<=31;x+=4.4)for(const y of[9,13]){box(2,2.2,.2,0x3a5a7a,x,y,5.1,pb);box(2,2.2,.2,0x3a5a7a,x,y,-25.1,pb)}
-for(const k in P){const p=P[k];if(p.wz!==undefined){box(3,4,.4,0x5b3a29,p.x,2,p.wz,pb);box(9,.8,3,p.c,p.x,4.6,p.wz+p.dir*1.5,pb)}}
+let bm;function useBuilding(buf){try{new THREE.GLTFLoader().parse(buf,"",g=>{const m=g.scene,b=new THREE.Box3().setFromObject(m),z=b.getSize(new THREE.Vector3());m.scale.setScalar(Math.min(70/z.x,30/z.z));m.updateMatrixWorld(true);b.setFromObject(m);m.position.add(new THREE.Vector3(-(b.min.x+b.max.x)/2,-b.min.y,5-b.max.z));m.updateMatrixWorld(true);b.setFromObject(m);bm&&scene.remove(bm);bm=m;scene.add(m);pb.visible=false;blocks[0]=[b.min.x,b.max.x,b.min.z,b.max.z];$("info2").textContent="Building loaded."},()=>{$("info2").textContent="Could not read the building file. Please use a .glb."})}catch(e){$("info2").textContent="Could not read the building file."}}
+for(let x=-31;x<=31;x+=4.4)for(const y of[9,13]){box(2,2.2,.2,0x3a5a7a,x,y,5.1,pb);box(2,2.2,.2,0x3a5a7a,x,y,-25.1,pb)}
+for(const k in P){const p=P[k];if(p.wz!==undefined){box(3,4,.4,0x5b3a29,p.x,2,p.wz);box(9,.8,3,p.c,p.x,4.6,p.wz+p.dir*1.5)}}
 blocks.push([-35,35,-25,5]);const bl=label("Main College Building");bl.scale.set(14,3.5,1);bl.position.set(0,29,-3);scene.add(bl);
 /* basketball court */
 box(30,.1,16,0x2f5d9e,62,.06,-10);box(28,.12,.25,0xffffff,62,.08,-17);box(28,.12,.25,0xffffff,62,.08,-3);box(.25,.12,14,0xffffff,62,.08,-10);box(.25,.12,14,0xffffff,48,.08,-10);box(.25,.12,14,0xffffff,76,.08,-10);
@@ -145,37 +91,7 @@ for(const s of[-1,1]){box(.3,4,.3,0x333333,62+s*14.6,2,-10);box(.2,2,3,0xffffff,
 const inB=(x,z,m)=>blocks.some(b=>x>b[0]-m&&x<b[1]+m&&z>b[2]-m&&z<b[3]+m);
 for(let i=0;i<50;i++){const x=R(-100,100),z=R(-95,95);if(Math.abs(x)<7||Math.abs(z)<7||Math.abs(z-52)<5||inB(x,z,4)||(Math.abs(x-62)<20&&Math.abs(z+10)<12)||(z>2&&z<20&&Math.abs(x)<42)||(Math.abs(x)<10&&z>70))continue;
  const t=new THREE.Mesh(new THREE.CylinderGeometry(.4,.5,2,6),M(0x7a5230));t.position.set(x,1,z);scene.add(t);const c=new THREE.Mesh(new THREE.ConeGeometry(2.2,5,6),M(0x2f8f4a));c.position.set(x,4.5,z);scene.add(c)}
-const _rc=new THREE.Raycaster(),_dirs=[
-  new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),
-  new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1),
-  new THREE.Vector3(.707,0,.707),new THREE.Vector3(-.707,0,.707),
-  new THREE.Vector3(.707,0,-.707),new THREE.Vector3(-.707,0,-.707)
-],_ro=new THREE.Vector3(),_dn=new THREE.Vector3(0,-1,0);
-let _lastCheck=0;let _cachedFloor=0;
-function floorY(p){
-  if(!bmMeshes.length||!bmBox)return 0;
-  if(p.x<bmBox.min.x-1||p.x>bmBox.max.x+1||p.z<bmBox.min.z-1||p.z>bmBox.max.z+1)return 0;
-  // Throttle raycasts or optimize by checking bounds
-  _ro.set(p.x,p.y+.8,p.z);
-  _rc.set(_ro,_dn);
-  _rc.far=3.0;
-  const hits=_rc.intersectObjects(bmMeshes,false);
-  if(hits.length>0){
-    return Math.max(0,hits[0].point.y);
-  }
-  return 0;
-}
-function push(p,r=.45){
-  for(const b of blocks){
-    if(p.x>b[0]-r&&p.x<b[1]+r&&p.z>b[2]-r&&p.z<b[3]+r){
-      const l=p.x-(b[0]-r),rt=b[1]+r-p.x,t=p.z-(b[2]-r),bt=b[3]+r-p.z,m=Math.min(l,rt,t,bt);
-      if(m==l)p.x=b[0]-r;else if(m==rt)p.x=b[1]+r;else if(m==t)p.z=b[2]-r;else p.z=b[3]+r;
-    }
-  }
-  if(!bmMeshes.length||!bmBox)return;
-  // Boundary check against building box perimeter (allow entering inside)
-  if(p.x<bmBox.min.x||p.x>bmBox.max.x||p.z<bmBox.min.z||p.z>bmBox.max.z)return;
-}
+function push(p,r=.5){for(const b of blocks)if(p.x>b[0]-r&&p.x<b[1]+r&&p.z>b[2]-r&&p.z<b[3]+r){const l=p.x-(b[0]-r),rt=b[1]+r-p.x,t=p.z-(b[2]-r),bt=b[3]+r-p.z,m=Math.min(l,rt,t,bt);if(m==l)p.x=b[0]-r;else if(m==rt)p.x=b[1]+r;else if(m==t)p.z=b[2]-r;else p.z=b[3]+r}}
 
 /* ================= CHARACTERS ================= */
 function blocky(sh,sk=0xf1c27d){const g=new THREE.Group();box(.8,1,.45,sh,0,1.2,0,g);box(.5,.5,.5,sk,0,2.05,0,g);box(.12,.12,.12,0xb98550,0,2,.3,g);
@@ -185,7 +101,7 @@ const swing=(b,s)=>{if(!b.legs)return;b.legs[0].rotation.x=s;b.legs[1].rotation.
 const pl=new THREE.Group();pl.position.set(0,0,70);scene.add(pl);let vis=blocky(0x2a6fdb);pl.add(vis.g);
 let mixer,A={},cur0,src;
 function play(n,t=1){let a=A[n];if(n=="idle"&&!a){a=A.walk;t=0}if(!a)return;if(cur0===a){a.timeScale=t;return}a.reset();a.timeScale=t;a.setEffectiveWeight(1);a.fadeIn(.15).play();cur0&&cur0.fadeOut(.15);cur0=a}
-function useModel(buf){try{makeLoader().parse(buf,"",g=>{const m=g.scene,b=new THREE.Box3().setFromObject(m),s=1.8/(b.max.y-b.min.y);m.scale.setScalar(s);m.position.y=-b.min.y*s;
+function useModel(buf){try{new THREE.GLTFLoader().parse(buf,"",g=>{const m=g.scene,b=new THREE.Box3().setFromObject(m),s=1.8/(b.max.y-b.min.y);m.scale.setScalar(s);m.position.y=-b.min.y*s;
  const h=new THREE.Group();h.add(m);pl.remove(vis.g);pl.add(h);vis={g:h};mixer=new THREE.AnimationMixer(m);A={};cur0=null;
  const f=fn=>g.animations.find(fn),w=f(c=>/walk|run/i.test(c.name)),i=f(c=>/idle|stand/i.test(c.name)),js=f(c=>/jump/i.test(c.name)&&!/land/i.test(c.name)),jl=f(c=>/land/i.test(c.name));
  const mk=(c,once)=>{if(!c)return;const a=mixer.clipAction(c);if(once){a.setLoop(THREE.LoopOnce);a.clampWhenFinished=true}return a};
@@ -524,7 +440,7 @@ function upd(dt){
    p.x+=dx/l*sp*dt;p.z+=dz/l*sp*dt;heading+=((Math.atan2(dx,dz)-heading+3*PI)%(2*PI)-PI)*Math.min(1,dt*12);heading=Math.atan2(Math.sin(heading),Math.cos(heading))}
   p.x=Math.max(-105,Math.min(105,p.x));p.z=Math.max(-105,Math.min(105,p.z));push(p);
   if(k.Space&&!air&&landT<=0&&!ride){vy=7.5;air=true;play("js")}
-  const gy=floorY(p);vy-=22*dt;p.y+=vy*dt;if(p.y<=gy){p.y=gy;vy=0;if(air){air=false;landT=A.jl?Math.min(A.jl.getClip().duration,.7):.12;play("jl")}}
+  vy-=22*dt;p.y+=vy*dt;if(p.y<=0){p.y=0;vy=0;if(air){air=false;landT=A.jl?Math.min(A.jl.getClip().duration,.7):.12;play("jl")}}
   if(landT>0)landT=Math.max(0,landT-dt);
   if(mixer){if(!air&&landT<=0)play(mvg&&!ride?"walk":"idle",mvg&&k.ShiftLeft&&!ride?1.5:1);mixer.update(dt)}else swing(vis,air?.7:mvg&&!ride?Math.sin(T0*10)*.8:0);
   vis.g.rotation.y=heading;vis.g.position.y=ride?.5:0;if(ride){sc.position.set(p.x,0,p.z);sc.rotation.y=heading}
@@ -549,16 +465,7 @@ function upd(dt){
   else if(o)hint="Press E to talk to "+o.n;
   $("hint").textContent=hint;$("hint").style.display=hint?"block":"none";
   const tg=new THREE.Vector3(p.x,p.y+1.6,p.z);
-  const _cOff=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch)*dist,Math.sin(pitch)*dist,Math.cos(yaw)*Math.cos(pitch)*dist);
-  let _cDist=dist;
-  // Camera collision optimized for performance
-  if(bmMeshes.length && Math.random()<0.3){
-    _rc.set(tg,_cOff.clone().normalize());
-    _rc.far=dist;
-    const _cHits=_rc.intersectObjects(bmMeshes,false);
-    if(_cHits.length)_cDist=Math.max(1.2,_cHits[0].distance-.35);
-  }
-  cam.position.copy(tg).addScaledVector(_cOff.normalize(),_cDist);cam.lookAt(tg);
+  cam.position.set(tg.x+Math.sin(yaw)*Math.cos(pitch)*dist,tg.y+Math.sin(pitch)*dist,tg.z+Math.cos(yaw)*Math.cos(pitch)*dist);cam.lookAt(tg);
 }
 const clock=new THREE.Clock();
 (function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
