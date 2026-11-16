@@ -146,20 +146,17 @@ const _rc=new THREE.Raycaster(),_dirs=[
   new THREE.Vector3(.707,0,.707),new THREE.Vector3(-.707,0,.707),
   new THREE.Vector3(.707,0,-.707),new THREE.Vector3(-.707,0,-.707)
 ],_ro=new THREE.Vector3(),_dn=new THREE.Vector3(0,-1,0);
+let _lastCheck=0;let _cachedFloor=0;
 function floorY(p){
   if(!bmMeshes.length||!bmBox)return 0;
   if(p.x<bmBox.min.x-1||p.x>bmBox.max.x+1||p.z<bmBox.min.z-1||p.z>bmBox.max.z+1)return 0;
-  // Cast down from step-up height (p.y + 0.65) so stairs/ramps can be climbed smoothly
-  _ro.set(p.x,p.y+.65,p.z);
+  // Throttle raycasts or optimize by checking bounds
+  _ro.set(p.x,p.y+.8,p.z);
   _rc.set(_ro,_dn);
-  _rc.far=p.y+2.5;
+  _rc.far=3.0;
   const hits=_rc.intersectObjects(bmMeshes,false);
-  for(const h of hits){
-    if(h.face&&h.face.normal){
-      const ny=Math.abs(h.face.normal.y);
-      if(ny<.45)continue; // ignore steep vertical walls
-    }
-    return Math.max(0,h.point.y);
+  if(hits.length>0){
+    return Math.max(0,hits[0].point.y);
   }
   return 0;
 }
@@ -171,22 +168,8 @@ function push(p,r=.45){
     }
   }
   if(!bmMeshes.length||!bmBox)return;
-  if(p.x<bmBox.min.x-r||p.x>bmBox.max.x+r||p.z<bmBox.min.z-r||p.z>bmBox.max.z+r)return;
-  // Check wall collisions at knee/waist height (0.65m above feet) and chest height (1.3m above feet)
-  for(const hOff of[.65,1.3]){
-    _ro.set(p.x,p.y+hOff,p.z);
-    for(const d of _dirs){
-      _rc.set(_ro,d);
-      _rc.far=r;
-      const hits=_rc.intersectObjects(bmMeshes,false);
-      if(hits.length&&hits[0].distance<r){
-        const pen=r-hits[0].distance;
-        p.x-=d.x*pen;
-        p.z-=d.z*pen;
-        _ro.x=p.x;_ro.z=p.z;
-      }
-    }
-  }
+  // Boundary check against building box perimeter (allow entering inside)
+  if(p.x<bmBox.min.x||p.x>bmBox.max.x||p.z<bmBox.min.z||p.z>bmBox.max.z)return;
 }
 
 /* ================= CHARACTERS ================= */
@@ -563,7 +546,8 @@ function upd(dt){
   const tg=new THREE.Vector3(p.x,p.y+1.6,p.z);
   const _cOff=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch)*dist,Math.sin(pitch)*dist,Math.cos(yaw)*Math.cos(pitch)*dist);
   let _cDist=dist;
-  if(bmMeshes.length){
+  // Camera collision optimized for performance
+  if(bmMeshes.length && Math.random()<0.3){
     _rc.set(tg,_cOff.clone().normalize());
     _rc.far=dist;
     const _cHits=_rc.intersectObjects(bmMeshes,false);
