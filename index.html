@@ -65,7 +65,7 @@ button,.b{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:6px
 const $=id=>document.getElementById(id),R=(a,b)=>a+Math.random()*(b-a),PI=Math.PI;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9fd3f5);scene.fog=new THREE.Fog(0x9fd3f5,70,170);
 const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,300);
-const ren=new THREE.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setPixelRatio(1);ren.setSize(innerWidth,innerHeight);
 ren.domElement.style.cssText="position:fixed;inset:0";document.body.prepend(ren.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x6a8f5a,1));const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(40,60,20);scene.add(sun);
 const M=c=>new THREE.MeshLambertMaterial({color:c});
@@ -97,10 +97,19 @@ function useBuilding(buf){
   try{
     makeLoader().parse(buf,"",g=>{
       const m=g.scene;
+      bmMeshes=[];
       m.traverse(n=>{
         if(n.isMesh){
+          n.castShadow=false;
+          n.receiveShadow=false;
           const mats=Array.isArray(n.material)?n.material:[n.material];
           mats.forEach(mt=>{if(mt){mt.side=THREE.DoubleSide;if("flatShading" in mt)delete mt.flatShading;}});
+          // Only collect meshes that are large enough to be floors/walls (ignores tiny props that lag raycasting)
+          const box=new THREE.Box3().setFromObject(n);
+          const sz=box.getSize(new THREE.Vector3());
+          if(sz.x > 1.5 || sz.z > 1.5 || sz.y > 1.5){
+            bmMeshes.push(n);
+          }
         }
       });
       const b=new THREE.Box3().setFromObject(m),z=b.getSize(new THREE.Vector3());
@@ -115,12 +124,9 @@ function useBuilding(buf){
       bm=m;
       scene.add(m);
       pb.visible=false;
-      // Remove the solid outer box blocker so player can walk inside the custom building!
       blocks.length=0;
       bmBox=b.clone();
-      bmMeshes=[];
-      m.traverse(n=>{if(n.isMesh)bmMeshes.push(n);});
-      $("info2").textContent="Building loaded (walkable interior).";
+      $("info2").textContent="Building loaded (optimized interior).";
     },err=>{
       console.error("Building GLB parse error:",err);
       $("info2").textContent="Could not read the building file. Please use a .glb.";
@@ -129,8 +135,7 @@ function useBuilding(buf){
     console.error("Building load exception:",e);
     $("info2").textContent="Could not read the building file.";
   }
-}
-for(let x=-31;x<=31;x+=4.4)for(const y of[9,13]){box(2,2.2,.2,0x3a5a7a,x,y,5.1,pb);box(2,2.2,.2,0x3a5a7a,x,y,-25.1,pb)}
+}for(let x=-31;x<=31;x+=4.4)for(const y of[9,13]){box(2,2.2,.2,0x3a5a7a,x,y,5.1,pb);box(2,2.2,.2,0x3a5a7a,x,y,-25.1,pb)}
 for(const k in P){const p=P[k];if(p.wz!==undefined){box(3,4,.4,0x5b3a29,p.x,2,p.wz,pb);box(9,.8,3,p.c,p.x,4.6,p.wz+p.dir*1.5,pb)}}
 blocks.push([-35,35,-25,5]);const bl=label("Main College Building");bl.scale.set(14,3.5,1);bl.position.set(0,29,-3);scene.add(bl);
 /* basketball court */
